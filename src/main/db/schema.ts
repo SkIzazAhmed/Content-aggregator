@@ -59,5 +59,14 @@ export function runMigrations(db: InstanceType<typeof Database>): void {
       category_id INTEGER REFERENCES categories(id) ON DELETE CASCADE,
       keyword     TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS credibility_scores (
+      article_id  INTEGER PRIMARY KEY REFERENCES articles(id) ON DELETE CASCADE,
+      score       REAL NOT NULL,
+      tier        INTEGER NOT NULL,
+      flags       TEXT NOT NULL DEFAULT '[]',
+      explanation TEXT NOT NULL,
+      checked_at  TEXT DEFAULT (datetime('now'))
+    );
   `)
 }

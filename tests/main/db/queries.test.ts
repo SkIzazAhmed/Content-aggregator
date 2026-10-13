@@ -4,7 +4,8 @@ import { runMigrations } from '../../../src/main/db/schema'
 import {
   createSource, listSources, updateSource, deleteSource,
   createCategory, listCategories,
-  insertArticle, getArticleByUrlHash, searchArticles
+  insertArticle, getArticleByUrlHash, searchArticles,
+  upsertCredibilityScore, getCredibilityScore, getFeed
 } from '../../../src/main/db/queries'
 
 let db: InstanceType<typeof Database>
@@ -82,5 +83,57 @@ describe('categories', () => {
     const cats = listCategories(db)
     expect(cats).toHaveLength(1)
     expect(cats[0].name).toBe('Tech')
+  })
+})
+
+describe('credibility scores', () => {
+  it('upsertCredibilityScore persists and getCredibilityScore retrieves', () => {
+    const { id: sourceId } = createSource(db, { name: 'F', url: 'https://f.com/rss', type: 'rss', trust_tier: 1 })
+    insertArticle(db, {
+      source_id: sourceId, url: 'https://a.com/1', title: 'T',
+      body_text: '', author: '', published_at: '2026-01-01T00:00:00Z', url_hash: 'h1',
+    })
+    const article = getArticleByUrlHash(db, 'h1')!
+    upsertCredibilityScore(db, article.id, { score: 0.90, tier: 1, flags: [], explanation: 'trusted' })
+    const cs = getCredibilityScore(db, article.id)
+    expect(cs).not.toBeNull()
+    expect(cs!.score).toBe(0.90)
+    expect(cs!.tier).toBe(1)
+    expect(cs!.flags).toEqual([])
+    expect(cs!.explanation).toBe('trusted')
+  })
+
+  it('upsertCredibilityScore replaces on re-score', () => {
+    const { id: sourceId } = createSource(db, { name: 'G', url: 'https://g.com/rss', type: 'rss', trust_tier: 2 })
+    insertArticle(db, {
+      source_id: sourceId, url: 'https://b.com/1', title: 'T2',
+      body_text: '', author: '', published_at: '2026-01-01T00:00:00Z', url_hash: 'h2',
+    })
+    const article = getArticleByUrlHash(db, 'h2')!
+    upsertCredibilityScore(db, article.id, { score: 0.65, tier: 2, flags: ['unconfirmed_tier'], explanation: 'first' })
+    upsertCredibilityScore(db, article.id, { score: 0.90, tier: 1, flags: [], explanation: 'updated' })
+    const cs = getCredibilityScore(db, article.id)!
+    expect(cs.score).toBe(0.90)
+    expect(cs.explanation).toBe('updated')
+  })
+
+  it('getFeed includes credibility when score exists, undefined when not', () => {
+    const { id: sourceId } = createSource(db, { name: 'H', url: 'https://h.com/rss', type: 'rss', trust_tier: 1 })
+    insertArticle(db, {
+      source_id: sourceId, url: 'https://c.com/1', title: 'Scored',
+      body_text: '', author: '', published_at: '2026-01-01T00:00:00Z', url_hash: 'h3',
+    })
+    insertArticle(db, {
+      source_id: sourceId, url: 'https://c.com/2', title: 'Unscored',
+      body_text: '', author: '', published_at: '2026-01-02T00:00:00Z', url_hash: 'h4',
+    })
+    const scored = getArticleByUrlHash(db, 'h3')!
+    upsertCredibilityScore(db, scored.id, { score: 0.90, tier: 1, flags: [], explanation: 'trusted' })
+    const feed = getFeed(db, { sort_by: 'date', limit: 10, offset: 0 })
+    const scoredResult = feed.find(a => a.url_hash === 'h3')!
+    const unscoredResult = feed.find(a => a.url_hash === 'h4')!
+    expect(scoredResult.credibility).toBeDefined()
+    expect(scoredResult.credibility!.score).toBe(0.90)
+    expect(unscoredResult.credibility).toBeUndefined()
   })
 })
