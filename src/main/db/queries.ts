@@ -25,6 +25,7 @@ export function updateSource(
   id: number,
   data: Partial<Pick<Source, 'name' | 'url' | 'active' | 'trust_tier' | 'last_fetched_at'>>
 ): void {
+  if (Object.keys(data).length === 0) return
   const fields = Object.keys(data).map(k => `${k} = ?`).join(', ')
   db.prepare(`UPDATE sources SET ${fields} WHERE id = ?`).run(...Object.values(data), id)
 }
@@ -81,19 +82,21 @@ export function searchArticles(
   params: SearchParams
 ): ArticleWithMeta[] {
   if (!params.query?.trim()) return getFeed(db, params)
-
-  const rows = db.prepare(`
-    SELECT a.*, s.name AS source_name, s.trust_tier AS source_trust_tier,
-           fts.rank AS fts_rank
-    FROM articles_fts fts
-    JOIN articles a ON a.id = fts.rowid
-    JOIN sources s ON s.id = a.source_id
-    WHERE articles_fts MATCH ?
-    ORDER BY ${params.sort_by === 'relevance' ? 'fts.rank' : 'a.published_at DESC'}
-    LIMIT ? OFFSET ?
-  `).all(params.query, params.limit, params.offset) as ArticleWithMeta[]
-
-  return attachCategories(db, rows)
+  try {
+    const rows = db.prepare(`
+      SELECT a.*, s.name AS source_name, s.trust_tier AS source_trust_tier,
+             fts.rank AS fts_rank
+      FROM articles_fts fts
+      JOIN articles a ON a.id = fts.rowid
+      JOIN sources s ON s.id = a.source_id
+      WHERE articles_fts MATCH ?
+      ORDER BY ${params.sort_by === 'relevance' ? 'fts.rank' : 'a.published_at DESC'}
+      LIMIT ? OFFSET ?
+    `).all(params.query, params.limit, params.offset) as ArticleWithMeta[]
+    return attachCategories(db, rows)
+  } catch {
+    return getFeed(db, params)
+  }
 }
 
 function attachCategories(
@@ -136,6 +139,7 @@ export function updateCategory(
   id: number,
   data: Partial<Pick<Category, 'name' | 'color'>>
 ): void {
+  if (Object.keys(data).length === 0) return
   const fields = Object.keys(data).map(k => `${k} = ?`).join(', ')
   db.prepare(`UPDATE categories SET ${fields} WHERE id = ?`).run(...Object.values(data), id)
 }

@@ -12,6 +12,10 @@ export function SourceForm({ onSave }: Props) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim() || !url.trim()) return
+    if (type === 'nitter' && !url.trim().endsWith('/rss')) {
+      alert('Nitter feeds must end with /rss (e.g. https://nitter.net/username/rss)')
+      return
+    }
     onSave({ name: name.trim(), url: url.trim(), type, trust_tier: 2 })
     setName(''); setUrl('')
   }
