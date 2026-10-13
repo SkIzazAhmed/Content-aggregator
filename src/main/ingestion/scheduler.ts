@@ -5,7 +5,7 @@ import { fetchSource } from './rss-fetcher'
 import { categorizeArticle } from '../categorization/keyword-rules'
 import type Database from 'better-sqlite3'
 
-let task: cron.ScheduledTask | null = null
+let task: ReturnType<typeof cron.schedule> | null = null
 
 async function runIngestion(db: InstanceType<typeof Database>): Promise<void> {
   const sources = listSources(db).filter(s => s.active === 1)
