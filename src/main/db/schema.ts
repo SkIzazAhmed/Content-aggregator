@@ -53,5 +53,11 @@ export function runMigrations(db: InstanceType<typeof Database>): void {
       INSERT INTO articles_fts(articles_fts, rowid, title, body_text, author)
       VALUES ('delete', old.id, old.title, old.body_text, old.author);
     END;
+
+    CREATE TABLE IF NOT EXISTS category_keywords (
+      id          INTEGER PRIMARY KEY,
+      category_id INTEGER REFERENCES categories(id) ON DELETE CASCADE,
+      keyword     TEXT NOT NULL
+    );
   `)
 }

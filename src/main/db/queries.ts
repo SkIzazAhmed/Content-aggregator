@@ -155,3 +155,25 @@ export function assignCategory(
     VALUES (?, ?, ?)
   `).run(articleId, categoryId, confidence)
 }
+
+// ── Category Keywords ─────────────────────────────────────────────────────────
+
+export interface CategoryKeyword { id: number; category_id: number; keyword: string; }
+
+export function addKeyword(db: InstanceType<typeof Database>, categoryId: number, keyword: string): void {
+  db.prepare('INSERT INTO category_keywords (category_id, keyword) VALUES (?, ?)').run(categoryId, keyword.toLowerCase())
+}
+
+export function removeKeyword(db: InstanceType<typeof Database>, keywordId: number): void {
+  db.prepare('DELETE FROM category_keywords WHERE id = ?').run(keywordId)
+}
+
+export function listKeywords(db: InstanceType<typeof Database>, categoryId: number): CategoryKeyword[] {
+  return db.prepare('SELECT * FROM category_keywords WHERE category_id = ?').all(categoryId) as CategoryKeyword[]
+}
+
+export function getAllKeywordRules(
+  db: InstanceType<typeof Database>
+): Array<{ category_id: number; keyword: string }> {
+  return db.prepare('SELECT category_id, keyword FROM category_keywords').all() as Array<{ category_id: number; keyword: string }>
+}
