@@ -29,11 +29,11 @@ const api = {
     delete: (id: number): Promise<void> =>
       ipcRenderer.invoke(IPC.CATEGORIES_DELETE, id),
     addKeyword: (catId: number, keyword: string): Promise<void> =>
-      ipcRenderer.invoke('categories:add-keyword', catId, keyword),
+      ipcRenderer.invoke(IPC.CATEGORIES_ADD_KEYWORD, catId, keyword),
     removeKeyword: (keywordId: number): Promise<void> =>
-      ipcRenderer.invoke('categories:remove-keyword', keywordId),
+      ipcRenderer.invoke(IPC.CATEGORIES_REMOVE_KEYWORD, keywordId),
     listKeywords: (catId: number): Promise<Array<{ id: number; category_id: number; keyword: string }>> =>
-      ipcRenderer.invoke('categories:list-keywords', catId),
+      ipcRenderer.invoke(IPC.CATEGORIES_LIST_KEYWORDS, catId),
   },
 }
 

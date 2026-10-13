@@ -11,7 +11,7 @@ export function registerCategoryHandlers(): void {
   ipcMain.handle(IPC.CATEGORIES_CREATE, (_e, data) => createCategory(openDb(), data))
   ipcMain.handle(IPC.CATEGORIES_UPDATE, (_e, id, data) => updateCategory(openDb(), id, data))
   ipcMain.handle(IPC.CATEGORIES_DELETE, (_e, id) => deleteCategory(openDb(), id))
-  ipcMain.handle('categories:add-keyword', (_e, catId, keyword) => addKeyword(openDb(), catId, keyword))
-  ipcMain.handle('categories:remove-keyword', (_e, keywordId) => removeKeyword(openDb(), keywordId))
-  ipcMain.handle('categories:list-keywords', (_e, catId) => listKeywords(openDb(), catId))
+  ipcMain.handle(IPC.CATEGORIES_ADD_KEYWORD, (_e, catId, keyword) => addKeyword(openDb(), catId, keyword))
+  ipcMain.handle(IPC.CATEGORIES_REMOVE_KEYWORD, (_e, keywordId) => removeKeyword(openDb(), keywordId))
+  ipcMain.handle(IPC.CATEGORIES_LIST_KEYWORDS, (_e, catId) => listKeywords(openDb(), catId))
 }

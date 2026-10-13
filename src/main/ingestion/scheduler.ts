@@ -3,6 +3,7 @@ import { openDb } from '../db/connection'
 import { listSources } from '../db/queries'
 import { fetchSource } from './rss-fetcher'
 import { categorizeArticle } from '../categorization/keyword-rules'
+import { scoreArticle } from '../credibility/scorer'
 import type Database from 'better-sqlite3'
 
 let task: ReturnType<typeof cron.schedule> | null = null
@@ -20,6 +21,18 @@ async function runIngestion(db: InstanceType<typeof Database>): Promise<void> {
       `).all(source.id) as any[]
       for (const article of uncategorized) {
         categorizeArticle(db, article)
+      }
+      const unscored = db.prepare(`
+        SELECT a.* FROM articles a
+        LEFT JOIN credibility_scores cs ON cs.article_id = a.id
+        WHERE a.source_id = ? AND cs.article_id IS NULL
+      `).all(source.id) as any[]
+      for (const article of unscored) {
+        try {
+          scoreArticle(db, article)
+        } catch (err) {
+          console.error(`[scheduler] Failed to score article ${article.id}:`, err)
+        }
       }
     } catch (err) {
       console.error(`[scheduler] Failed to fetch source ${source.id} (${source.url}):`, err)
