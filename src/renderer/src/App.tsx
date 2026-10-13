@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Home } from './pages/Home'
 import { Settings } from './pages/Settings'
 
 type Tab = 'feed' | 'settings'
@@ -31,12 +32,7 @@ function App(): React.JSX.Element {
         </button>
       </nav>
       <main className="flex-1 overflow-auto">
-        {activeTab === 'feed' && (
-          <div className="flex flex-col items-center justify-center h-full">
-            <h1 className="text-4xl font-bold">Content Aggregator</h1>
-            <p className="mt-4 text-gray-500">Your personal content hub — Feed coming in Task 8</p>
-          </div>
-        )}
+        {activeTab === 'feed' && <Home />}
         {activeTab === 'settings' && <Settings />}
       </main>
     </div>
