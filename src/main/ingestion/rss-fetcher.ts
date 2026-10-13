@@ -4,22 +4,11 @@ import type Database from 'better-sqlite3'
 import { insertArticle, updateSource, getArticleByUrlHash } from '../db/queries'
 import type { Source } from '../db/types'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ParserFactory = (opts?: Record<string, unknown>) => InstanceType<typeof Parser>
-
 export async function fetchSource(
   db: InstanceType<typeof Database>,
   source: Source
 ): Promise<{ inserted: number; skipped: number }> {
-  // Cast to factory so the vi.fn() mock (arrow function) works in tests,
-  // while the real Parser class (constructable) also works via Reflect.construct fallback.
-  let parser: InstanceType<typeof Parser>
-  try {
-    parser = new Parser({ timeout: 10_000 })
-  } catch {
-    // Under test mocks the constructor may be an arrow function; call as factory instead
-    parser = (Parser as unknown as ParserFactory)({ timeout: 10_000 })
-  }
+  const parser = new Parser({ timeout: 10_000 })
 
   const feed = await parser.parseURL(source.url)
   let inserted = 0

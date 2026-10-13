@@ -7,26 +7,28 @@ import { fetchSource } from '../../../src/main/ingestion/rss-fetcher'
 // Mock rss-parser so tests don't make real network calls
 vi.mock('rss-parser', () => {
   return {
-    default: vi.fn().mockImplementation(() => ({
-      parseURL: vi.fn().mockResolvedValue({
-        items: [
-          {
-            title: 'Article One',
-            link: 'https://example.com/1',
-            contentSnippet: 'Snippet of article one',
-            creator: 'Author A',
-            pubDate: 'Mon, 01 Jan 2026 00:00:00 GMT',
-          },
-          {
-            title: 'Article Two',
-            link: 'https://example.com/2',
-            contentSnippet: 'Snippet of article two',
-            creator: 'Author B',
-            pubDate: 'Tue, 02 Jan 2026 00:00:00 GMT',
-          },
-        ],
-      }),
-    })),
+    default: vi.fn().mockImplementation(function() {
+      return {
+        parseURL: vi.fn().mockResolvedValue({
+          items: [
+            {
+              title: 'Article One',
+              link: 'https://example.com/1',
+              contentSnippet: 'Snippet of article one',
+              creator: 'Author A',
+              pubDate: 'Mon, 01 Jan 2026 00:00:00 GMT',
+            },
+            {
+              title: 'Article Two',
+              link: 'https://example.com/2',
+              contentSnippet: 'Snippet of article two',
+              creator: 'Author B',
+              pubDate: 'Tue, 02 Jan 2026 00:00:00 GMT',
+            },
+          ],
+        }),
+      }
+    }),
   }
 })
 
