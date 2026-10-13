@@ -1,0 +1,10 @@
+function App(): React.JSX.Element {
+  return (
+    <div className="flex flex-col items-center justify-center h-screen">
+      <h1 className="text-4xl font-bold">Content Aggregator</h1>
+      <p className="mt-4 text-gray-500">Your personal content hub</p>
+    </div>
+  )
+}
+
+export default App
