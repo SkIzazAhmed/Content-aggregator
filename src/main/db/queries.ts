@@ -1,8 +1,8 @@
 import type Database from 'better-sqlite3'
 import crypto from 'crypto'
-import type { Source, Article, Category, ArticleWithMeta, SearchParams } from './types'
+import type { Source, Article, Category, ArticleWithMeta, SearchParams, CredibilityScore } from './types'
 
-export type { Source, Article, Category, ArticleWithMeta, SearchParams }
+export type { Source, Article, Category, ArticleWithMeta, SearchParams, CredibilityScore }
 
 // ── Sources ──────────────────────────────────────────────────────────────────
 
@@ -54,6 +54,27 @@ export function getArticleByUrlHash(
   return (db.prepare('SELECT * FROM articles WHERE url_hash = ?').get(hash) ?? null) as Article | null
 }
 
+type RawWithCredibility = ArticleWithMeta & {
+  cs_score: number | null
+  cs_tier: number | null
+  cs_flags: string | null
+  cs_explanation: string | null
+}
+
+function attachCredibility(row: RawWithCredibility): ArticleWithMeta {
+  const { cs_score, cs_tier, cs_flags, cs_explanation, ...rest } = row
+  if (cs_score === null) return rest as ArticleWithMeta
+  return {
+    ...rest,
+    credibility: {
+      score: cs_score,
+      tier: cs_tier!,
+      flags: JSON.parse(cs_flags!),
+      explanation: cs_explanation!,
+    },
+  } as ArticleWithMeta
+}
+
 export function getFeed(
   db: InstanceType<typeof Database>,
   params: Omit<SearchParams, 'query'>
@@ -66,15 +87,18 @@ export function getFeed(
   args.push(params.limit, params.offset)
 
   const rows = db.prepare(`
-    SELECT a.*, s.name AS source_name, s.trust_tier AS source_trust_tier
+    SELECT a.*, s.name AS source_name, s.trust_tier AS source_trust_tier,
+           cs.score AS cs_score, cs.tier AS cs_tier, cs.flags AS cs_flags,
+           cs.explanation AS cs_explanation
     FROM articles a
     JOIN sources s ON s.id = a.source_id
+    LEFT JOIN credibility_scores cs ON cs.article_id = a.id
     ${categoryFilter}
     ORDER BY ${orderBy}
     LIMIT ? OFFSET ?
-  `).all(...args) as ArticleWithMeta[]
+  `).all(...args) as Array<RawWithCredibility>
 
-  return attachCategories(db, rows)
+  return attachCategories(db, rows.map(attachCredibility))
 }
 
 export function searchArticles(
@@ -85,15 +109,18 @@ export function searchArticles(
   try {
     const rows = db.prepare(`
       SELECT a.*, s.name AS source_name, s.trust_tier AS source_trust_tier,
-             fts.rank AS fts_rank
+             fts.rank AS fts_rank,
+             cs.score AS cs_score, cs.tier AS cs_tier, cs.flags AS cs_flags,
+             cs.explanation AS cs_explanation
       FROM articles_fts fts
       JOIN articles a ON a.id = fts.rowid
       JOIN sources s ON s.id = a.source_id
+      LEFT JOIN credibility_scores cs ON cs.article_id = a.id
       WHERE articles_fts MATCH ?
       ORDER BY ${params.sort_by === 'relevance' ? 'fts.rank' : 'a.published_at DESC'}
       LIMIT ? OFFSET ?
-    `).all(params.query, params.limit, params.offset) as ArticleWithMeta[]
-    return attachCategories(db, rows)
+    `).all(params.query, params.limit, params.offset) as Array<RawWithCredibility>
+    return attachCategories(db, rows.map(attachCredibility))
   } catch {
     return getFeed(db, params)
   }
@@ -180,4 +207,26 @@ export function getAllKeywordRules(
   db: InstanceType<typeof Database>
 ): Array<{ category_id: number; keyword: string }> {
   return db.prepare('SELECT category_id, keyword FROM category_keywords').all() as Array<{ category_id: number; keyword: string }>
+}
+
+// ── Credibility Scores ────────────────────────────────────────────────────────
+
+export function upsertCredibilityScore(
+  db: InstanceType<typeof Database>,
+  articleId: number,
+  data: { score: number; tier: number; flags: string[]; explanation: string }
+): void {
+  db.prepare(`
+    INSERT OR REPLACE INTO credibility_scores (article_id, score, tier, flags, explanation)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(articleId, data.score, data.tier, JSON.stringify(data.flags), data.explanation)
+}
+
+export function getCredibilityScore(
+  db: InstanceType<typeof Database>,
+  articleId: number
+): CredibilityScore | null {
+  const row = db.prepare('SELECT * FROM credibility_scores WHERE article_id = ?').get(articleId) as (CredibilityScore & { flags: string }) | null
+  if (!row) return null
+  return { ...row, flags: JSON.parse(row.flags) }
 }
