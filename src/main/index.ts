@@ -5,9 +5,14 @@ import icon from '../../resources/icon.png?asset'
 import { runMigrations } from './db/schema'
 import { openDb, closeDb } from './db/connection'
 import { startScheduler, stopScheduler } from './ingestion/scheduler'
+import { registerSourceHandlers } from './ipc/sources'
+import { registerArticleHandlers } from './ipc/articles'
+import { registerCategoryHandlers } from './ipc/categories'
 
 function registerIpcHandlers(): void {
-  // Task 6 fills this in
+  registerSourceHandlers()
+  registerArticleHandlers()
+  registerCategoryHandlers()
 }
 
 function createWindow(): void {
