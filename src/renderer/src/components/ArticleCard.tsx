@@ -1,4 +1,5 @@
 import type { ArticleWithMeta } from '../types'
+import { CredibilityBadge } from './CredibilityBadge'
 
 interface Props { article: ArticleWithMeta }
 
@@ -31,6 +32,9 @@ export function ArticleCard({ article }: Props) {
           ))}
         </div>
       )}
+      <div className="mt-1">
+        <CredibilityBadge credibility={article.credibility} />
+      </div>
       {article.body_text && (
         <p className="text-sm text-gray-600 mt-1 line-clamp-2">{article.body_text}</p>
       )}
