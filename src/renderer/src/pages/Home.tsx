@@ -35,8 +35,15 @@ export function Home() {
   useEffect(() => { load() }, [load])
   useEffect(() => { window.api.categories.list().then(setCategories) }, [])
 
-  function handleQueryChange(q: string) { setQuery(q); setPage(0) }
+  function handleQueryChange(q: string) {
+    if (q.trim() && sortBy === 'source') setSortBy('date')
+    setQuery(q)
+    setPage(0)
+  }
+
   function handleCategorySelect(id: number | null) { setSelectedCategory(id); setPage(0) }
+
+  const queryActive = query.trim().length > 0
 
   return (
     <div className="max-w-2xl mx-auto p-6 flex flex-col gap-4">
@@ -54,7 +61,7 @@ export function Home() {
         >
           <option value="date">Sort: Newest</option>
           <option value="relevance">Sort: Relevance</option>
-          <option value="source">Sort: Source</option>
+          <option value="source" disabled={queryActive}>Sort: Source</option>
         </select>
       </div>
       <FeedView articles={articles} isLoading={isLoading} />
