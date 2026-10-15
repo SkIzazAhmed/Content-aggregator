@@ -2,12 +2,17 @@ import { useEffect, useState } from 'react'
 import { SourceForm } from '../components/SourceForm'
 import type { Source, Category } from '../types'
 
+interface CategoryKeyword { id: number; category_id: number; keyword: string }
+
 export function Settings() {
   const [sources, setSources] = useState<Source[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [newCatName, setNewCatName] = useState('')
   const [newCatColor, setNewCatColor] = useState('#3b82f6')
   const [isFetching, setIsFetching] = useState(false)
+  const [expandedCatId, setExpandedCatId] = useState<number | null>(null)
+  const [keywords, setKeywords] = useState<CategoryKeyword[]>([])
+  const [newKeyword, setNewKeyword] = useState('')
 
   async function loadSources() { setSources(await window.api.sources.list()) }
   async function loadCategories() { setCategories(await window.api.categories.list()) }
@@ -29,6 +34,11 @@ export function Settings() {
     loadSources()
   }
 
+  async function handleTierChange(id: number, tier: number) {
+    await window.api.sources.update(id, { trust_tier: tier as 1 | 2 | 3 })
+    loadSources()
+  }
+
   async function handleFetchNow() {
     setIsFetching(true)
     await window.api.sources.fetchNow()
@@ -45,7 +55,39 @@ export function Settings() {
 
   async function handleDeleteCategory(id: number) {
     await window.api.categories.delete(id)
+    if (expandedCatId === id) setExpandedCatId(null)
     loadCategories()
+  }
+
+  async function handleExpandCategory(catId: number) {
+    if (expandedCatId === catId) {
+      setExpandedCatId(null)
+      return
+    }
+    setExpandedCatId(catId)
+    setNewKeyword('')
+    setKeywords(await window.api.categories.listKeywords(catId))
+  }
+
+  async function handleRemoveKeyword(keywordId: number) {
+    await window.api.categories.removeKeyword(keywordId)
+    if (expandedCatId !== null) {
+      setKeywords(await window.api.categories.listKeywords(expandedCatId))
+    }
+  }
+
+  async function handleAddKeyword(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newKeyword.trim() || expandedCatId === null) return
+    await window.api.categories.addKeyword(expandedCatId, newKeyword.trim())
+    setNewKeyword('')
+    setKeywords(await window.api.categories.listKeywords(expandedCatId))
+  }
+
+  const tierLabel: Record<number, string> = {
+    1: 'Tier 1 — Trusted',
+    2: 'Tier 2 — Unknown',
+    3: 'Tier 3 — Flagged',
   }
 
   return (
@@ -69,7 +111,16 @@ export function Settings() {
                 <span className="font-medium">{s.name}</span>
                 <span className="ml-2 text-gray-500 text-xs">{s.url}</span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                <select
+                  value={s.trust_tier}
+                  onChange={e => handleTierChange(s.id, Number(e.target.value))}
+                  className="text-xs border rounded px-1 py-0.5"
+                >
+                  <option value={1}>{tierLabel[1]}</option>
+                  <option value={2}>{tierLabel[2]}</option>
+                  <option value={3}>{tierLabel[3]}</option>
+                </select>
                 <button
                   onClick={() => handleToggleSource(s)}
                   className={`text-xs rounded px-2 py-0.5 ${s.active === 1 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}
@@ -100,14 +151,54 @@ export function Settings() {
         </form>
         <ul className="mt-4 flex flex-col gap-2">
           {categories.map(c => (
-            <li key={c.id} className="flex items-center justify-between border rounded p-2 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full inline-block" style={{ background: c.color }} />
-                <span className="font-medium">{c.name}</span>
+            <li key={c.id} className="border rounded text-sm">
+              <div className="flex items-center justify-between p-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full inline-block" style={{ background: c.color }} />
+                  <span className="font-medium">{c.name}</span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleExpandCategory(c.id)}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    {expandedCatId === c.id ? 'Hide keywords' : 'Keywords'}
+                  </button>
+                  <button onClick={() => handleDeleteCategory(c.id)} className="text-xs text-red-600 hover:underline">
+                    Remove
+                  </button>
+                </div>
               </div>
-              <button onClick={() => handleDeleteCategory(c.id)} className="text-xs text-red-600 hover:underline">
-                Remove
-              </button>
+              {expandedCatId === c.id && (
+                <div className="border-t px-3 py-2 flex flex-col gap-2">
+                  <div className="flex flex-wrap gap-1">
+                    {keywords.map(kw => (
+                      <span key={kw.id} className="flex items-center gap-1 text-xs bg-gray-100 rounded-full px-2 py-0.5">
+                        {kw.keyword}
+                        <button
+                          onClick={() => handleRemoveKeyword(kw.id)}
+                          className="text-gray-400 hover:text-red-600 leading-none"
+                          aria-label={`Remove keyword ${kw.keyword}`}
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                    {keywords.length === 0 && <span className="text-gray-400 text-xs">No keywords yet.</span>}
+                  </div>
+                  <form onSubmit={handleAddKeyword} className="flex gap-2">
+                    <input
+                      className="border rounded px-2 py-1 text-xs flex-1"
+                      placeholder="Add keyword…"
+                      value={newKeyword}
+                      onChange={e => setNewKeyword(e.target.value)}
+                    />
+                    <button type="submit" className="bg-blue-600 text-white rounded px-2 py-1 text-xs hover:bg-blue-700">
+                      Add
+                    </button>
+                  </form>
+                </div>
+              )}
             </li>
           ))}
         </ul>
